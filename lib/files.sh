@@ -16,19 +16,9 @@ EDITOR="${EDITOR:-code}"
 DRY_RUN="${DRY_RUN:-0}"
 INTERACTIVE="${INTERACTIVE:-1}"
 
-# --- Colors ---
-readonly RED="\033[1;31m"
-readonly GREEN="\033[1;32m"
-readonly YELLOW="\033[1;33m"
-readonly CYAN="\033[1;36m"
-readonly RESET="\033[0m"
 
 # --- Logging & Error Handling ---
-log()    { printf "%b\n" "${GREEN}[*]${RESET} $1"; }
-warn()   { printf "%b\n" "${YELLOW}[!]${RESET} $1"; }
-info()   { printf "%b\n" "${CYAN}[*]${RESET} $1"; }
-error()  { printf "%b\n" "${RED}[!]${RESET} $1" >&2; }
-fail()   { error "$1"; exit 1; }
+. console.sh
 
 
 # --- Prerequisite Checks ---
@@ -257,6 +247,7 @@ commit_config_path() {
     popd >/dev/null || exit
 }
 
+
 # --- Workflow Functions ---
 clean() { clean_config_path; }
 copy_files() { expand_all_items | while read -r pair; do copy_attempt "$pair"; done; }
@@ -264,6 +255,19 @@ init_git_repo() { init_config_path; }
 commit_all_changes() { commit_config_path; }
 setup() { clean; copy_files; init_git_repo; commit_all_changes; }
 update() { commit_all_changes; copy_files; commit_all_changes; }
+
+# --- System Update Functions ---
+update_grub() {
+    log "Updating GRUB..."
+    sudo update-grub
+    log "GRUB updated."
+}
+
+update_initramfs() {
+    log "Updating Initramfs..."
+    sudo update-initramfs -u
+    log "Initramfs updated."
+}
 
 # --- Environment Loader ---
 load_env() {
@@ -285,4 +289,4 @@ load_env() {
 
 # --- Script Initialization ---
 load_env
-# Expose main entry points: setup, update, clean
+# Expose main entry points: setup, update, clean, update_grub, update_initramfs

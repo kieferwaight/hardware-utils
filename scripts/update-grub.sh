@@ -1,6 +1,8 @@
 #!/usr/bin/bash
 set -e
 
-echo "[*] Updating grub..."
-sudo update-grub
-echo "[+] Done. GRUB updated."
+
+# shellcheck source=../lib/files.sh
+. ./lib/files.sh
+
+update_grub

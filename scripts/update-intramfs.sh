@@ -1,6 +1,9 @@
 #!/usr/bin/bash
 set -e
 
-echo "[*] Updating Initramfs..."
-sudo update-initramfs -u
-echo "[+] Done. Initramfs updated."
+
+# shellcheck source=../lib/files.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/console.sh"
+. ./lib/files.sh
+
+update_initramfs

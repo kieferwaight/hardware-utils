@@ -5,6 +5,10 @@ sudo apt update
 sudo apt -y install \
     code \
     code-insiders \
-    git \ # direnv \
+    git \
     shellcheck \
-    shfmt
+    shfmt \
+    curl \
+    bats
+
+curl -fsSL https://raw.githubusercontent.com/sigoden/argc/main/install.sh | sudo sh -s -- --to /usr/local/bin
