@@ -1,43 +1,40 @@
 {
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[shellscript]": {
-    "editor.defaultFormatter": "mads-hartmann.bash-ide-vscode"
+    "editor.defaultFormatter": "foxundermoon.shell-format"
   },
   "files.autoSave": "afterDelay",
   "files.autoSaveDelay": 1000,
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.shellcheck": "explicit"
+    "source.fixAll.shellcheck": "always"
   },
 
-  // "bashIde.globPattern": "**/*@(.env|.sh|.inc|.bash|.command)",
-  // "bashIde.includeAllWorkspaceSymbols": true,
-
-  // "bashIde.shfmt.path": "/usr/bin/shfmt",
   "shellcheck.enable": true,
   "shellcheck.enableQuickFix": true,
   "shellcheck.run": "onType",
   "editor.semanticTokenColorCustomizations": {
     "enabled": true
   },
-  "taskExplorer.enableSideBar": true,
-  "syntax.debugHover": true,
-  "taskExplorer.enableExplorerView": false,
-  "taskExplorer.clickAction": "Execute",
-  "runTerminalCommand.commands": [
-    {
-      "command": "chmod +x {resource}",
-      "name": "Make Executable",
-      "auto": true,
-      "group": "Shell",
-      "preserve": false
-    }
-  ],
-  "manpages.binary.path": "/usr/bin/man",
-  "manpages.enableSyntaxHighlighting": true,
-  "manpages.apropos.path": "/usr/bin/apropos",
-  "manpages.openAsSplit": true,
-  "manpages.editorMenuShortcutPosition": "navigation",
+  // "taskExplorer.enableSideBar": true,
+  // "syntax.debugHover": true,
+  // "taskExplorer.enableExplorerView": false,
+  // "taskExplorer.clickAction": "Execute",
+  // "runTerminalCommand.commands": [
+  //   {
+  //     "command": "chmod +x {resource}",
+  //     "name": "Make Executable",
+  //     "auto": true,
+  //     "group": "Shell",
+  //     "preserve": false
+  //   }
+  // ],
+  // "manpages.binary.path": "/usr/bin/man",
+  // "manpages.enableSyntaxHighlighting": true,
+  // "manpages.apropos.path": "/usr/bin/apropos",
+  // "manpages.openAsSplit": true,
+  // "manpages.editorMenuShortcutPosition": "navigation",
   "git.decorations.enabled": false,
   "git.autoRepositoryDetection": "openEditors"
+  // "shellCompletion.h2oPath": "/home/server/.vscode/extensions/tetradresearch.vscode-h2o-0.2.15/bin/h2o-x86_64-unknown-linux"
 }

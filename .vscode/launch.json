@@ -1,0 +1,17 @@
+{
+  "configurations": [
+    {
+      "name": "Run Current File",
+      "type": "bashdb",
+      "request": "launch",
+      "program": "${relativeFile}",
+      "presentation": {
+        "hidden": false,
+        "group": "Shellscript",
+        "order": 1
+      },
+      "cwd": "${workspaceFolder}",
+      "terminalKind": "integrated"
+    }
+  ]
+}

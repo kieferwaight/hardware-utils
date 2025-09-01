@@ -1,6 +1,4 @@
 ## ShellCheck Configuration
-source-path=SCRIPTDIR
-source-path=./lib
 external-sources=true
 
 # Enable all warnings except those explicitly excluded

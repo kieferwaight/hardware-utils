@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Current Shell Script",
+      "type": "shell",
+      "command": "bash",
+      "args": ["${file}"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Make Current Shell Script Executable",
+      "type": "shell",
+      "command": "chmod",
+      "args": ["+x", "${file}"],
+      "group": "none",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
