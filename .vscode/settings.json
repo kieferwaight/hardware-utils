@@ -1,0 +1,43 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[shellscript]": {
+    "editor.defaultFormatter": "mads-hartmann.bash-ide-vscode"
+  },
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.shellcheck": "explicit"
+  },
+
+  // "bashIde.globPattern": "**/*@(.env|.sh|.inc|.bash|.command)",
+  // "bashIde.includeAllWorkspaceSymbols": true,
+
+  // "bashIde.shfmt.path": "/usr/bin/shfmt",
+  "shellcheck.enable": true,
+  "shellcheck.enableQuickFix": true,
+  "shellcheck.run": "onType",
+  "editor.semanticTokenColorCustomizations": {
+    "enabled": true
+  },
+  "taskExplorer.enableSideBar": true,
+  "syntax.debugHover": true,
+  "taskExplorer.enableExplorerView": false,
+  "taskExplorer.clickAction": "Execute",
+  "runTerminalCommand.commands": [
+    {
+      "command": "chmod +x {resource}",
+      "name": "Make Executable",
+      "auto": true,
+      "group": "Shell",
+      "preserve": false
+    }
+  ],
+  "manpages.binary.path": "/usr/bin/man",
+  "manpages.enableSyntaxHighlighting": true,
+  "manpages.apropos.path": "/usr/bin/apropos",
+  "manpages.openAsSplit": true,
+  "manpages.editorMenuShortcutPosition": "navigation",
+  "git.decorations.enabled": false,
+  "git.autoRepositoryDetection": "openEditors"
+}

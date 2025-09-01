@@ -1,0 +1,10 @@
+## ShellCheck Configuration
+source-path=SCRIPTDIR
+source-path=./lib
+external-sources=true
+
+# Enable all warnings except those explicitly excluded
+severity=style
+
+# Set shell dialect to bash by default
+shell=bash
