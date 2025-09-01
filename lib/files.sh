@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2317
 #
 # files.sh - File management utilities for config backup/restore.
 # Intended to be sourced by other scripts.
@@ -9,161 +8,203 @@
 #   update  - Commit changes, copy files, commit again.
 #   clean   - Remove config directory.
 #
+set -euo pipefail
 
 # --- Globals ---
-ITEMS=()
+declare -a ITEM_LIST=()
+EDITOR="${EDITOR:-code}"
+DRY_RUN="${DRY_RUN:-0}"
+INTERACTIVE="${INTERACTIVE:-1}"
+
+# --- Colors ---
+readonly RED="\033[1;31m"
+readonly GREEN="\033[1;32m"
+readonly YELLOW="\033[1;33m"
+readonly CYAN="\033[1;36m"
+readonly RESET="\033[0m"
 
 # --- Logging & Error Handling ---
-log() {
-    echo "[*] $1"
-}
+log()    { printf "%b\n" "${GREEN}[*]${RESET} $1"; }
+warn()   { printf "%b\n" "${YELLOW}[!]${RESET} $1"; }
+info()   { printf "%b\n" "${CYAN}[*]${RESET} $1"; }
+error()  { printf "%b\n" "${RED}[!]${RESET} $1" >&2; }
+fail()   { error "$1"; exit 1; }
 
-err() {
-    echo "[!] $1" >&2
-}
 
-throw() {
-    echo "[!] $1" >&2
-    exit 1
-}
+# --- Prerequisite Checks ---
+BASH_MAJOR_VERSION="${BASH_VERSION%%.*}"
+if [ "${BASH_MAJOR_VERSION:-0}" -lt 4 ]; then
+    fail "Bash 4.0+ is required."
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+    fail "Git is required."
+fi
+
 
 # --- File Utilities ---
 
-# Returns 0 if file exists and needs sudo to read, else 1
-if_file_needs_sudo() {
+# Returns 0 if file exists and requires sudo to read
+file_requires_sudo() {
     local file="$1"
     [ -f "$file" ] && [ ! -r "$file" ]
 }
 
 # Returns 0 if destination file exists
-if_dest_exists() {
+destination_exists() {
     local file="$1"
     [ -f "$file" ]
 }
 
 # Returns 0 if files differ, 1 if identical or missing
-if_files_are_different() {
+files_differ() {
     local file1="$1"
     local file2="$2"
     [ -f "$file1" ] && [ -f "$file2" ] && ! cmp -s "$file1" "$file2"
 }
 
+# Sanitizes a file path by resolving symlinks and checking for invalid components
+sanitize_path() {
+    local path="$1"
+    # Allow non-existent destination files, but check for invalid components
+    if [[ "$path" == *".."* ]]; then
+        fail "Invalid path (contains ..): $path"
+    fi
+    if [[ "$path" = /* ]]; then
+        : # absolute paths are allowed
+    fi
+    if [ -e "$path" ]; then
+        realpath "$path" 2>/dev/null || fail "Invalid path: $path"
+    else
+        # For non-existent files, check parent dir
+        local parent
+        parent="$(dirname -- "$path")"
+        if [ -d "$parent" ]; then
+            realpath "$parent" 2>/dev/null >/dev/null || fail "Invalid parent directory: $parent"
+        fi
+    fi
+}
+
 # --- Copy/Merge Logic ---
 
-# Copy src to dest, handling merge/overwrite/skip if dest exists
-copy() {
+copy_file() {
     local src="$1"
     local dest="$2"
     local use_sudo="$3"
 
-    if if_dest_exists "$dest"; then
+    if [ "$INTERACTIVE" -eq 0 ]; then
+        force_copy "$src" "$dest" "$use_sudo"
+        return
+    fi
+
+    if destination_exists "$dest"; then
         log "Destination $dest already exists."
-        if if_files_are_different "$src" "$dest"; then
+        if files_differ "$src" "$dest"; then
             log "Source $src and destination $dest differ."
-            log "What do you want to do?"
-            # Redirect input to /dev/tty so it comes from the keyboard
+            log "Choose action:"
             select option in "Merge" "Overwrite" "Skip"; do
                 case "$option" in
-                    "Merge")
-                        merge "$src" "$dest" "$use_sudo"
-                        log "Merge completed."
-                        break
-                        ;;
-                    "Overwrite")
-                        log "Overwriting $dest with $src"
-                        force_copy "$src" "$dest" "$use_sudo"
-                        break
-                        ;;
-                    "Skip")
-                        log "Skipping $src"
-                        return
-                        ;;
-                    *)
-                        log "Invalid option"
-                        ;;
+                    "Merge") merge_files "$src" "$dest" "$use_sudo"; break ;;
+                    "Overwrite") force_copy "$src" "$dest" "$use_sudo"; break ;;
+                    "Skip") log "Skipping $src"; return ;;
+                    *) warn "Invalid option" ;;
                 esac
             done < /dev/tty
         else
             log "Source $src and destination $dest are identical. Skipping."
-            return
         fi
     else
-        log "Copying $src to $dest"
         force_copy "$src" "$dest" "$use_sudo"
     fi
 }
 
-# Merge src and dest using VS Code merge editor
-merge() {
+merge_files() {
     local src="$1"
     local dest="$2"
     local use_sudo="$3"
     local OURS="$dest.ours"
     local BASE="$dest.base"
     local THEIRS="$dest.theirs"
+    local prefix=""
+    [ "$use_sudo" = "1" ] && prefix="sudo "
 
-    mkdir -p "$(dirname "$BASE")"
-    [ -f "$BASE" ] || touch "$BASE"
+    $prefix mkdir -p "$(dirname "$BASE")"
+    if [ ! -f "$BASE" ]; then
+        $prefix touch "$BASE"
+    fi
 
     force_copy "$src" "$THEIRS" "$use_sudo"
-    force_copy "$dest" "$OURS" 0
+    force_copy "$dest" "$OURS" "$use_sudo"
 
-    log "Opening VS Code merge editor. Please resolve conflicts..."
-    code --wait --merge "$OURS" "$THEIRS" "$BASE" "$dest"
+    log "Opening $EDITOR merge editor. Resolve conflicts..."
+    if [ "$DRY_RUN" -eq 1 ]; then
+        log "Dry run: skipping actual merge."
+    else
+        "$EDITOR" --wait --merge "$OURS" "$THEIRS" "$BASE" "$dest"
+    fi
 
-    rm -f "$BASE" "$THEIRS" "$OURS"
+    $prefix rm -f "$BASE" "$THEIRS" "$OURS"
 }
 
-# Copy src to dest, optionally using sudo, and set permissions
 force_copy() {
     local src="$1"
     local dest="$2"
     local use_sudo="$3"
     local prefix=""
-
     [ "$use_sudo" = "1" ] && prefix="sudo "
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+        log "Dry run: would copy $src -> $dest (sudo=$use_sudo)"
+        return
+    fi
+
     $prefix mkdir -p "$(dirname "$dest")"
-    $prefix cp "$src" "$dest"
-    $prefix chown "$(id -un):$(id -gn)" "$dest"
-    $prefix chmod 664 "$dest"
+    if [ -f "$src" ]; then
+        local perms
+        perms=$(stat -c "%a" "$src")
+        $prefix install -m "$perms" "$src" "$dest"
+        $prefix chown "$(id -un):$(id -gn)" "$dest"
+    fi
+    log "Copied $src -> $dest"
 }
 
-# Attempt to copy a file:dest pair, prompt for sudo if needed
 copy_attempt() {
     local pair="$1"
     local src dest answer
     src="${pair%%:*}"
     dest="${pair#*:}"
+    sanitize_path "$src"
+    sanitize_path "$dest"
 
-    if if_file_needs_sudo "$src"; then
-        log "File $src requires sudo to read. Elevate to sudo? (y/n) or skip (s): "
-        read -r answer < /dev/tty
+    if file_requires_sudo "$src"; then
+        prompt="${CYAN}File $src requires sudo to read. Elevate to sudo? (y), skip (s), abort (n): ${RESET}"
+        printf "%b" "$prompt"
+        read -r answer </dev/tty
         case "$answer" in
-            y | Y) copy "$src" "$dest" 1 ;;
-            s | S) log "Skipped $src" ;;
-            *) log "Not copying $src" ;;
+            y|Y) copy_file "$src" "$dest" 1 ;;
+            s|S) log "Skipped $src" ;;
+            n|N) fail "Aborted by user." ;;
+            *) warn "Invalid input, skipping $src" ;;
         esac
     else
-        copy "$src" "$dest" 0
+        copy_file "$src" "$dest" 0
     fi
 }
 
 # --- Entry Expansion Utilities ---
 
-# Expand all entries in ITEMS to file:dest pairs
 expand_all_items() {
     local entry
-    for entry in "${ITEMS[@]}"; do
+    for entry in "${ITEM_LIST[@]}"; do
         expand_entry "$entry"
     done
 }
 
-# Expand entry "/etc/foo:etc/foo" or "/etc/dir:etc/dir"
 expand_entry() {
     local entry="$1"
     local src dest rel_path
     src="${entry%%:*}"
-    dest="$CONFIG_DIR/${entry#*:}"
+    dest="$CONFIG_PATH/${entry#*:}"
     if [ -f "$src" ]; then
         echo "$src:$dest"
     elif [ -d "$src" ]; then
@@ -174,8 +215,7 @@ expand_entry() {
     fi
 }
 
-# Returns 0 if entry's source is a directory
-is_entry_source_dir() {
+item_source_is_dir() {
     local entry="$1"
     local src="${entry%%:*}"
     [ -d "$src" ]
@@ -183,98 +223,66 @@ is_entry_source_dir() {
 
 # --- Config Directory Management ---
 
-# Remove the config directory if it exists
-clean_config_dir() {
-    if [ -n "$CONFIG_DIR" ] && [ -d "$CONFIG_DIR" ]; then
-        sudo rm -rf "$CONFIG_DIR"
-    fi
+clean_config_path() {
+    [ -n "$CONFIG_PATH" ] && [ -d "$CONFIG_PATH" ] && {
+        if [ "$DRY_RUN" -eq 1 ]; then
+            log "Dry run: would remove $CONFIG_PATH"
+        else
+            sudo rm -rf "$CONFIG_PATH"
+            log "Removed $CONFIG_PATH"
+        fi
+    }
 }
 
-# Create config directory and initialize git repo if needed
-init_config_dir() {
-    mkdir -p "$CONFIG_DIR"
-    cd "$CONFIG_DIR" || exit 1
+init_config_path() {
+    mkdir -p "$CONFIG_PATH"
+    cd "$CONFIG_PATH" || return 1
     [ ! -d .git ] && git init
-    cd - >/dev/null || exit 1
+    cd - >/dev/null || return 1
 }
 
-# Add and commit all files in config directory
-commit_config_dir() {
-    cd "$CONFIG_DIR" || exit 1
+commit_config_path() {
+    local message="${1:-Update}"
+    pushd "$CONFIG_PATH" >/dev/null || fail "Cannot access $CONFIG_PATH"
     git add .
     if ! git diff --cached --quiet; then
-        git commit -m "Update"
+        if [ "$DRY_RUN" -eq 1 ]; then
+            log "Dry run: would commit changes"
+        else
+            git commit -m "$message"
+        fi
     else
         log "No changes to commit."
     fi
-    cd - >/dev/null || exit 1
+    popd >/dev/null || exit
 }
 
-# --- Workflow Functions (Main Entry Points) ---
-
-# Remove config directory (clean workspace)
-clean() {
-    clean_config_dir
-}
-
-# Copy all files from ITEMS to config directory
-copy_files() {
-    expand_all_items | while read -r pair; do
-        copy_attempt "$pair"
-    done
-}
-
-# Initialize git repo in config directory
-init_git_repo() {
-    init_config_dir
-}
-
-# Commit all changes in config directory
-commit_all_changes() {
-    commit_config_dir
-}
-
-# Full setup: clean, copy, init git, commit
-setup() {
-    clean
-    copy_files
-    init_git_repo
-    commit_all_changes
-}
-
-# Update: commit, copy, commit again
-update() {
-    commit_all_changes
-    copy_files
-    commit_all_changes
-}
+# --- Workflow Functions ---
+clean() { clean_config_path; }
+copy_files() { expand_all_items | while read -r pair; do copy_attempt "$pair"; done; }
+init_git_repo() { init_config_path; }
+commit_all_changes() { commit_config_path; }
+setup() { clean; copy_files; init_git_repo; commit_all_changes; }
+update() { commit_all_changes; copy_files; commit_all_changes; }
 
 # --- Environment Loader ---
-
-# Load .env and config.txt, populate CONFIG_DIR and ITEMS
 load_env() {
-    if [ -f .env ]; then
+    [ -f .env ] || fail "Error: .env file not found."
+    # Only source if it contains expected variables (basic check)
+    if grep -q "^CONFIG_PATH=" .env; then
         # shellcheck source=../.env
         . .env
     else
-        throw "Error: .env file not found."
+        fail "Invalid .env file."
     fi
-
-    if [ -z "$CONFIG_DIR" ]; then
-        throw "Error: CONFIG_DIR is not defined."
-    fi
-
-    if [ -f "config.txt" ]; then
-        while IFS= read -r line; do
-            [[ -z "$line" || "$line" =~ ^# ]] && continue
-            ITEMS+=("$line")
-        done <"config.txt"
-    else
-        throw "Error: config.txt not found."
-    fi
+    [ -n "$CONFIG_PATH" ] || fail "Error: CONFIG_PATH is not defined."
+    [ -f "config.txt" ] || fail "Error: config.txt not found."
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^# ]] && continue
+        ITEM_LIST+=("$line")
+    done <"config.txt"
 }
 
 # --- Script Initialization ---
-
 load_env
-# Main entry points: setup, update, clean
+# Expose main entry points: setup, update, clean
