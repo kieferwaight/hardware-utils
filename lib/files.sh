@@ -18,7 +18,7 @@ INTERACTIVE="${INTERACTIVE:-1}"
 
 
 # --- Logging & Error Handling ---
-. console.sh
+. ./lib/console.sh
 
 
 # --- Prerequisite Checks ---

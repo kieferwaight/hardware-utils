@@ -1,0 +1,29 @@
+modules = ["bash"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "System Toolkit CLI"
+
+[[workflows.workflow]]
+name = "System Toolkit CLI"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "export PATH=\"$HOME:$PATH\" && bash main.sh info && echo \"=== Available Commands ===\" && bash main.sh --help"
+
+[workflows.workflow.metadata]
+outputType = "console"

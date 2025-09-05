@@ -3,6 +3,6 @@ set -e
 
 
 # shellcheck source=../lib/files.sh
-. ./lib/files.sh
+. ../lib/files.sh
 
 setup
